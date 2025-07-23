@@ -1,8 +1,7 @@
 import React from 'react';
-import { AuthProvider } from './contexts/AuthContext';
 import AppNavigator from './AppNavigator';
-import { CartProvider } from './contexts/CartContext'; // correct the path if needed
-
+import { CartProvider } from './contexts/CartContext';
+import { AuthProvider } from './contexts/AuthContext';
 
 export default function App() {
   return (

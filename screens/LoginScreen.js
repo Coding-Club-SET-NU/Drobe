@@ -4,24 +4,47 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  Alert
 } from 'react-native';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from './firebase';
-import { Ionicons } from '@expo/vector-icons'; // 👈 Make sure you have @expo/vector-icons installed
+import { auth } from './firebaseConfig';
+import { Ionicons } from '@expo/vector-icons'; 
+import Toast from 'react-native-toast-message';
+
+console.log('✅ loaded App.js, auth =', typeof auth);
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false); // 👈 Add state to toggle visibility
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = async () => {
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-      Alert.alert('Login Failed', error.message);
-    }
-  };
+ const handleLogin = async () => {
+  if (!email || !password) {
+    Toast.show({
+      type: 'error',
+      text1: 'Missing Fields',
+      text2: 'Please enter both email and password.',
+    });
+    return;
+  }
+
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+
+    Toast.show({
+      type: 'success',
+      text1: 'Login Successful',
+    });
+
+    navigation.replace('Main'); // 👈 change to your actual main screen
+  } catch (error) {
+    Toast.show({
+      type: 'error',
+      text1: 'Login Failed',
+      text2: error.message,
+    });
+  }
+};
+
 
   return (
     <View style={{ flex: 1, padding: 20, justifyContent: 'center' }}>
@@ -31,6 +54,7 @@ const LoginScreen = ({ navigation }) => {
 
       <TextInput
         placeholder="Email"
+        placeholderTextColor="grey"
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
@@ -38,7 +62,6 @@ const LoginScreen = ({ navigation }) => {
         style={{ borderBottomWidth: 1, marginBottom: 20, fontSize: 16 }}
       />
 
-      {/* 👇 Password Field with Eye Icon */}
       <View
         style={{
           flexDirection: 'row',
@@ -49,6 +72,7 @@ const LoginScreen = ({ navigation }) => {
       >
         <TextInput
           placeholder="Password"
+          placeholderTextColor="grey"
           value={password}
           onChangeText={setPassword}
           secureTextEntry={!showPassword}
@@ -75,6 +99,8 @@ const LoginScreen = ({ navigation }) => {
           Don't have an account? Register
         </Text>
       </TouchableOpacity>
+
+      <Toast />
     </View>
   );
 };

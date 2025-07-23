@@ -55,12 +55,14 @@ const AutoScrollingBanner = ({ images }) => {
 
 const styles = StyleSheet.create({
   bannerContainer: {
-    width,
-    height: 200,
-  },
+  marginTop: 1,     // optional, keep small spacing from top
+  marginBottom: -19, // ⬅️ this reduces space *below* banner
+  paddingBottom: 0,
+},
+
   bannerImage: {
     width,
-    height: 200,
+    height: 10,
     resizeMode: 'cover',
   },
   dotsContainer: {

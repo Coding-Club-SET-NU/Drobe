@@ -7,7 +7,8 @@ const ThankYou = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>🎉 Thank You!</Text>
+      <Text style={styles.emoji}></Text>
+      <Text style={styles.title}>Thank You!</Text>
       <Text style={styles.subtitle}>Your order has been placed successfully.</Text>
 
       <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('Main')}>
@@ -25,26 +26,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#DBDBD0',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 24,
+  },
+  emoji: {
+    fontSize: 64,
+    marginBottom: 20,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 12,
+    marginBottom: 8,
+    color: '#222',
   },
   subtitle: {
     fontSize: 16,
     marginBottom: 30,
     textAlign: 'center',
+    color: '#444',
   },
   button: {
     backgroundColor: '#222',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 14,
+    elevation: 2,
   },
   buttonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
   },
 });

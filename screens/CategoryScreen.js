@@ -7,10 +7,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
+import Toast from 'react-native-toast-message';
 
 const CategoryProductsScreen = ({ route, navigation }) => {
   const [products, setProducts] = useState([]);
@@ -21,7 +21,11 @@ const CategoryProductsScreen = ({ route, navigation }) => {
 
   useEffect(() => {
     if (!gender || !category) {
-      Alert.alert('Missing Info', 'Gender or Category not provided');
+      Toast.show({
+        type: 'error',
+        text1: 'Missing Info',
+        text2: 'Gender or Category not provided',
+      });
       setLoading(false);
       return;
     }
@@ -43,7 +47,11 @@ const CategoryProductsScreen = ({ route, navigation }) => {
       setProducts(filtered);
     } catch (error) {
       console.error('🔥 Error fetching products:', error);
-      Alert.alert('Error', 'Could not load products.');
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Could not load products.',
+      });
     } finally {
       setLoading(false);
     }
@@ -79,6 +87,8 @@ const CategoryProductsScreen = ({ route, navigation }) => {
           contentContainerStyle={{ paddingBottom: 80 }}
         />
       )}
+
+      <Toast />
     </View>
   );
 };

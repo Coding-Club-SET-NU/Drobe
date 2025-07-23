@@ -5,12 +5,12 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ScrollView,
 } from 'react-native';
 import { getAuth } from 'firebase/auth';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from './firebase'; // ✅ corrected path if firebaseConfig.js is in root
+import { db } from './firebaseConfig';
+import Toast from 'react-native-toast-message';
 
 const SellerRegistration = () => {
   const [name, setName] = useState('');
@@ -18,16 +18,22 @@ const SellerRegistration = () => {
   const [businessName, setBusinessName] = useState('');
 
   const handleSubmit = async () => {
-    const auth = getAuth(); // ✅ call getAuth() only once here
+    const auth = getAuth();
     const user = auth.currentUser;
 
     if (!user) {
-      Alert.alert('Error', 'You must be logged in.');
+      Toast.show({
+        type: 'error',
+        text1: 'You must be logged in.',
+      });
       return;
     }
 
     if (!name || !phone || !businessName) {
-      Alert.alert('Missing info', 'Please fill in all fields.');
+      Toast.show({
+        type: 'info',
+        text1: 'Please fill all details',
+      });
       return;
     }
 
@@ -41,13 +47,22 @@ const SellerRegistration = () => {
         timestamp: serverTimestamp(),
       });
 
-      Alert.alert('Request sent', 'We’ll get back to you soon!');
+      Toast.show({
+        type: 'success',
+        text1: 'Request sent',
+        text2: 'We’ll get back to you soon!',
+      });
+
       setName('');
       setPhone('');
       setBusinessName('');
     } catch (err) {
       console.error('Error sending request:', err);
-      Alert.alert('Error', 'Could not send request');
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Could not send request',
+      });
     }
   };
 
@@ -80,6 +95,8 @@ const SellerRegistration = () => {
       <TouchableOpacity style={styles.button} onPress={handleSubmit}>
         <Text style={styles.buttonText}>Submit Request</Text>
       </TouchableOpacity>
+
+      <Toast />
     </ScrollView>
   );
 };

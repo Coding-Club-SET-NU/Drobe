@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "drobe-final",
-    "slug": "drobe-final",
+    "name": "Drobe",
+    "slug": "Drobe",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,14 +16,22 @@
       "supportsTablet": true
     },
     "android": {
+      "useNextNotificationsApi": true,
+      "edgeToEdgeEnabled": true,
+      "package": "com.anonymous.Drobe",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true
+      }
     },
+    "plugins": ["expo-notifications"],
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "drey-f8e6d"
+      }
     }
   }
 }

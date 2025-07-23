@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "439693871832",
+    "project_id": "drey-f8e6d",
+    "storage_bucket": "drey-f8e6d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:439693871832:android:1cff4bece55c3fa15b65ad",
+        "android_client_info": {
+          "package_name": "com.anonymous.Drobe"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDhPYDL72YnDhZDqXyJ_pScgeKvy3R1g_k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

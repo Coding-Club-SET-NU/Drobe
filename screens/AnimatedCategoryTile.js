@@ -38,9 +38,12 @@ const AnimatedCategoryTile = ({ item, navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  tile: {
-    alignItems: 'center',
-    marginHorizontal: 6,
+ tileContainer: {
+  alignItems: 'center',
+  justifyContent: 'center',
+  // Remove all left-side spacing
+  padding: 0,
+  margin: 0,
   },
   image: {
     width: 70,

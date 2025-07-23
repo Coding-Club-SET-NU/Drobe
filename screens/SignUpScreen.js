@@ -3,13 +3,13 @@ import {
   View,
   Text,
   TextInput,
-  Alert,
   StyleSheet,
   TouchableOpacity,
 } from "react-native";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "./firebase";
+import { auth } from "./firebaseConfig";
 import { useNavigation } from "@react-navigation/native";
+import Toast from "react-native-toast-message";
 
 export default function SignUpScreen() {
   const [email, setEmail] = useState("");
@@ -18,23 +18,39 @@ export default function SignUpScreen() {
 
   const handleSignUp = () => {
     if (!email || !password) {
-      Alert.alert("Missing Fields", "Please fill all fields");
+      Toast.show({
+        type: "error",
+        text1: "Missing Fields",
+        text2: "Please fill all fields",
+      });
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert("Weak Password", "Password must be at least 6 characters");
+      Toast.show({
+        type: "error",
+        text1: "Weak Password",
+        text2: "Password must be at least 6 characters",
+      });
       return;
     }
 
     createUserWithEmailAndPassword(auth, email, password)
       .then((userCredential) => {
         const user = userCredential.user;
-        Alert.alert("Welcome", `Account created for ${user.email}`);
-        navigation.replace("Main"); 
+        Toast.show({
+          type: "success",
+          text1: "Account Created",
+          text2: `Welcome, ${user.email}`,
+        });
+        navigation.replace("Main");
       })
       .catch((error) => {
-        Alert.alert("Signup Failed", error.message);
+        Toast.show({
+          type: "error",
+          text1: "Signup Failed",
+          text2: error.message,
+        });
       });
   };
 
@@ -62,6 +78,8 @@ export default function SignUpScreen() {
       <TouchableOpacity style={styles.button} onPress={handleSignUp}>
         <Text style={styles.buttonText}>Sign Up</Text>
       </TouchableOpacity>
+
+      <Toast />
     </View>
   );
 }

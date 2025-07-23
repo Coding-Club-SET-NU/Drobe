@@ -1,5 +1,3 @@
-// screens/UploadScreen.js
-
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -8,9 +6,9 @@ import {
   StyleSheet,
   Image,
   TouchableOpacity,
-  Alert,
   ScrollView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -20,12 +18,13 @@ import {
   getDoc,
   doc,
 } from 'firebase/firestore';
-import { db, auth, storage } from './firebase'; // ✅ Must include storage
+import { db, auth, storage } from './firebaseConfig';
 import {
   ref,
   uploadBytes,
   getDownloadURL,
 } from 'firebase/storage';
+import Toast from 'react-native-toast-message'; // ✅ Import toast
 
 const UploadScreen = () => {
   const navigation = useNavigation();
@@ -33,29 +32,28 @@ const UploadScreen = () => {
   const [price, setPrice] = useState('');
   const [category, setCategory] = useState('');
   const [gender, setGender] = useState('');
-  const [imageUri, setImageUri] = useState(null);
+  const [location, setLocation] = useState('');
+  const [imageUris, setImageUris] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const [isSeller, setIsSeller] = useState(null); // null means loading
+  const [isSeller, setIsSeller] = useState(null);
 
   useEffect(() => {
     const checkSellerStatus = async () => {
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        Alert.alert(
-          'Login Required',
-          'Please login to upload a product.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Login', onPress: () => navigation.navigate('LoginScreen') },
-          ]
-        );
+        Toast.show({
+          type: 'info',
+          text1: 'Login Required',
+          text2: 'Please login to upload a product.',
+        });
+        navigation.navigate('LoginScreen');
         return;
       }
 
       try {
         const docRef = doc(db, 'sellers', currentUser.uid);
         const docSnap = await getDoc(docRef);
-        setIsSeller(docSnap.exists()); // true if seller document exists
+        setIsSeller(docSnap.exists());
       } catch (error) {
         console.error('Error checking seller:', error);
         setIsSeller(false);
@@ -65,65 +63,89 @@ const UploadScreen = () => {
     checkSellerStatus();
   }, []);
 
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      allowsEditing: true,
-      quality: 0.7,
-    });
+  const pickImages = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        allowsMultipleSelection: true,
+        quality: 0.7,
+        selectionLimit: 5,
+      });
 
-    if (!result.canceled && result.assets.length > 0) {
-      setImageUri(result.assets[0].uri);
+      if (!result.canceled && result.assets.length > 0) {
+        const selectedUris = result.assets.map((asset) => asset.uri);
+        const combined = [...imageUris, ...selectedUris].slice(0, 5);
+        setImageUris(combined);
+      }
+    } catch (error) {
+      console.error("Image picking failed:", error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error picking images',
+      });
     }
   };
 
   const handleUpload = async () => {
-    if (!name || !price || !category || !gender || !imageUri) {
-      Alert.alert('Please fill all fields and select an image');
+    if (!name || !price || !category || !gender || !location || imageUris.length === 0) {
+      Toast.show({
+        type: 'error',
+        text1: 'Missing Fields',
+        text2: 'Fill all fields and select at least one image.',
+      });
       return;
     }
 
     try {
       setUploading(true);
       const sellerId = auth.currentUser?.uid;
+      const imageUrls = [];
 
-      // Convert image URI to blob
-      const response = await fetch(imageUri);
-      const blob = await response.blob();
+      for (const uri of imageUris) {
+        const response = await fetch(uri);
+        const blob = await response.blob();
 
-      // Upload image to Firebase Storage
-      const filename = `${Date.now()}_${name}.jpg`;
-      const storageRef = ref(storage, `products/${filename}`);
-      await uploadBytes(storageRef, blob);
+        const filename = `products/${Date.now()}_${Math.random().toString(36).substring(2)}.jpg`;
+        const storageRef = ref(storage, filename);
+        await uploadBytes(storageRef, blob);
+        const downloadURL = await getDownloadURL(storageRef);
+        imageUrls.push(downloadURL);
+      }
 
-      // Get download URL
-      const downloadURL = await getDownloadURL(storageRef);
-
-      // Save product data to Firestore
       await addDoc(collection(db, 'clothes'), {
         name,
         price: parseFloat(price),
         category,
         gender,
-        image: downloadURL,
+        location,
+        images: imageUrls,
         sellerId,
         timestamp: serverTimestamp(),
       });
 
-      Alert.alert('✅ Product Uploaded');
+      Toast.show({
+        type: 'success',
+        text1: '✅ Product Uploaded',
+      });
+
+      // Reset form
       setName('');
       setPrice('');
       setCategory('');
       setGender('');
-      setImageUri(null);
+      setLocation('');
+      setImageUris([]);
     } catch (error) {
       console.error('Upload error:', error);
-      Alert.alert('Error uploading item');
+      Toast.show({
+        type: 'error',
+        text1: 'Upload Failed',
+        text2: 'Something went wrong while uploading.',
+      });
     } finally {
       setUploading(false);
     }
   };
 
-  // Loading or non-seller message
   if (isSeller === null) {
     return (
       <View style={styles.container}>
@@ -133,29 +155,36 @@ const UploadScreen = () => {
   }
 
   if (!isSeller) {
-    return (
-      <View style={styles.container}>
-        <Text style={{ fontSize: 16, textAlign: 'center', color: 'gray' }}>
-          🚫 You are not a registered seller.
-        </Text>
-      </View>
-    );
-  }
+  console.log('⚠️ User is not a seller, showing error screen...');
+  return (
+    <View style={styles.container}>
+      <Text style={{ fontSize: 16, textAlign: 'center', color: 'gray' }}>
+        You are not a registered seller.
+      </Text>
+    </View>
+  );
+}
+
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Upload Product</Text>
 
-      <TouchableOpacity onPress={pickImage} style={styles.imageBox}>
-        {imageUri ? (
-          <Image source={{ uri: imageUri }} style={styles.image} />
+      <TouchableOpacity onPress={pickImages} style={styles.imageBox}>
+        {imageUris.length > 0 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {imageUris.map((uri, index) => (
+              <Image key={index} source={{ uri }} style={styles.previewImage} />
+            ))}
+          </ScrollView>
         ) : (
-          <Text style={styles.placeholderText}>Tap to select image</Text>
+          <Text style={styles.placeholderText}>Tap to select images</Text>
         )}
       </TouchableOpacity>
 
       <TextInput
         style={styles.input}
+        placeholderTextColor="gray"
         placeholder="Product Name"
         value={name}
         onChangeText={setName}
@@ -163,22 +192,31 @@ const UploadScreen = () => {
       <TextInput
         style={styles.input}
         placeholder="Price"
+        placeholderTextColor="gray"
         keyboardType="numeric"
         value={price}
         onChangeText={setPrice}
       />
       <TextInput
         style={styles.input}
-        placeholder="Category (e.g., T-Shirts)"
+        placeholderTextColor="gray"
+        placeholder="Category (e.g., T-Shirts, Dresses)"
         value={category}
         onChangeText={setCategory}
       />
-      
       <TextInput
         style={styles.input}
+        placeholderTextColor="gray"
         placeholder="Gender (Her, Him, Ministyle)"
         value={gender}
         onChangeText={setGender}
+      />
+      <TextInput
+        style={styles.input}
+        placeholderTextColor="gray"
+        placeholder="Location (e.g., Kohima)"
+        value={location}
+        onChangeText={setLocation}
       />
 
       <TouchableOpacity
@@ -190,6 +228,8 @@ const UploadScreen = () => {
           {uploading ? 'Uploading...' : 'Upload Product'}
         </Text>
       </TouchableOpacity>
+
+      <Toast /> 
     </ScrollView>
   );
 };
@@ -197,6 +237,7 @@ const UploadScreen = () => {
 const styles = StyleSheet.create({
   container: {
     padding: 20,
+    paddingTop: 50,
     alignItems: 'center',
     backgroundColor: '#DBDBD0',
   },
@@ -204,27 +245,30 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 20,
+    marginTop: 30,
   },
   imageBox: {
-    width: 160,
+    width: '100%',
     height: 160,
     backgroundColor: '#f0f0f0',
     borderRadius: 10,
     justifyContent: 'center',
-    alignItems: 'center',
+    paddingHorizontal: 10,
     marginBottom: 20,
   },
-  placeholderText: {
-    color: '#88',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
+  previewImage: {
+    width: 140,
+    height: 140,
     borderRadius: 10,
+    marginRight: 10,
+  },
+  placeholderText: {
+    color: 'black',
+    textAlign: 'center',
   },
   input: {
     width: '100%',
-    backgroundColor: '#8888',
+    backgroundColor: 'white',
     padding: 12,
     borderRadius: 10,
     marginBottom: 12,

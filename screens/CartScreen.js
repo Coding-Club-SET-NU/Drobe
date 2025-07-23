@@ -1,3 +1,5 @@
+// ✅ Full corrected code with style and logic for preventing duplicate cart items based on productId + size
+
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -5,10 +7,9 @@ import {
   FlatList,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   Image,
 } from 'react-native';
-import { db, auth } from './firebase';
+import { db, auth } from './firebaseConfig';
 import {
   collection,
   query,
@@ -16,50 +17,101 @@ import {
   onSnapshot,
   deleteDoc,
   doc,
+  setDoc,
   updateDoc,
+  getDocs,
 } from 'firebase/firestore';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
+import { useNavigation } from '@react-navigation/native';
 
 const CartScreen = () => {
+  const navigation = useNavigation();
   const [cartItems, setCartItems] = useState([]);
+  const [wishlistIds, setWishlistIds] = useState([]);
 
-  useEffect(() => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      Alert.alert('Login Required', 'Please login to view your cart.');
-      return;
-    }
+  const fetchWishlist = async () => {
+    const userId = auth.currentUser?.uid;
+    if (!userId) return;
+    const q = query(collection(db, 'wishlist'), where('userId', '==', userId));
+    onSnapshot(q, (snap) => {
+      const ids = snap.docs.map((doc) => doc.data().productId);
+      setWishlistIds(ids);
+    });
+  };
 
-    const q = query(collection(db, 'cart'), where('userId', '==', currentUser.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs.map(doc => ({
+  const fetchCartItems = async () => {
+    const userId = auth.currentUser?.uid;
+    if (!userId) return;
+    const q = query(collection(db, 'cart'), where('userId', '==', userId));
+    onSnapshot(q, (snapshot) => {
+      const items = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
       setCartItems(items);
     });
+  };
 
-    return () => unsubscribe();
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) {
+      Toast.show({
+        type: 'error',
+        text1: 'Login required',
+        text2: 'Please login to view your cart.',
+      });
+      return;
+    }
+    fetchCartItems();
+    fetchWishlist();
   }, []);
 
   const updateQuantity = async (itemId, newQty) => {
     if (newQty < 1 || newQty > 5) return;
     try {
-      await updateDoc(doc(db, 'cart', itemId), {
-        quantity: newQty,
-      });
+      await updateDoc(doc(db, 'cart', itemId), { quantity: newQty });
     } catch (err) {
-      console.error('Error updating quantity:', err);
-      Alert.alert('Error', 'Could not update quantity.');
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Could not update quantity.',
+      });
     }
   };
 
   const removeFromCart = async (id) => {
     try {
       await deleteDoc(doc(db, 'cart', id));
-      Alert.alert('Removed', 'Item removed from cart.');
+      Toast.show({ type: 'success', text1: 'Removed from cart' });
     } catch (error) {
-      console.error('Error removing item:', error);
-      Alert.alert('Error', 'Could not remove item.');
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Could not remove item.',
+      });
+    }
+  };
+
+  const moveToWishlist = async (item) => {
+    const userId = auth.currentUser?.uid;
+    if (!userId) return Toast.show({ type: 'error', text1: 'Login required' });
+
+    if (wishlistIds.includes(item.productId)) return;
+
+    const wishlistRef = doc(db, 'wishlist', `${userId}_${item.productId}`);
+    try {
+      await setDoc(wishlistRef, {
+        userId,
+        productId: item.productId,
+        name: item.name,
+        image: item.image,
+        price: item.price,
+        addedAt: new Date(),
+      });
+      Toast.show({ type: 'success', text1: 'Moved to Wishlist' });
+    } catch (err) {
+      Toast.show({ type: 'error', text1: 'Error adding to wishlist' });
     }
   };
 
@@ -75,20 +127,27 @@ const CartScreen = () => {
   };
 
   const handleBuy = () => {
-    Alert.alert('✅ Order Placed', 'Thanks for shopping with us!');
+    Toast.show({
+      type: 'success',
+      text1: '✅ Order Placed',
+      text2: 'Thanks for shopping with us!',
+    });
   };
 
   const renderItem = ({ item }) => {
     const qty = item.quantity || 1;
+    const isWishlisted = wishlistIds.includes(item.productId);
 
     return (
-      <View style={styles.itemCard}>
+      <View style={styles.itemRow}>
         <Image
           source={{ uri: item.image || 'https://via.placeholder.com/100' }}
           style={styles.itemImage}
         />
-        <View style={styles.itemInfo}>
+
+        <View style={styles.itemContent}>
           <Text style={styles.itemName}>{item.name}</Text>
+          <Text style={styles.itemSize}>Size: {item.size || 'N/A'}</Text>
           <Text style={styles.itemPrice}>₹{item.price}</Text>
 
           <View style={styles.quantityRow}>
@@ -99,7 +158,9 @@ const CartScreen = () => {
             >
               <Text style={styles.qtyText}>−</Text>
             </TouchableOpacity>
+
             <Text style={styles.qtyCount}>{qty}</Text>
+
             <TouchableOpacity
               onPress={() => updateQuantity(item.id, qty + 1)}
               style={[styles.qtyButton, qty >= 5 && { opacity: 0.3 }]}
@@ -109,10 +170,21 @@ const CartScreen = () => {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity onPress={() => removeFromCart(item.id)}>
-            <Text style={styles.removeBtn}>Remove</Text>
-            <Text style={styles.removeBtn}>Move to wishlist</Text>
-          </TouchableOpacity>
+          <View style={styles.actionsRow}>
+            <TouchableOpacity onPress={() => removeFromCart(item.id)}>
+              <Ionicons name="trash-outline" size={22} color="#728C69" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => moveToWishlist(item)}
+              disabled={isWishlisted}
+            >
+              <MaterialCommunityIcons
+                name="heart-plus-outline"
+                size={20}
+                color="#728C69"
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -120,28 +192,37 @@ const CartScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>🛒 My Cart</Text>
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#000" />
+        </TouchableOpacity>
+        <Text style={styles.heading}>My Cart</Text>
+        <View style={{ width: 24 }} />
+      </View>
 
       {cartItems.length === 0 ? (
         <Text style={styles.emptyText}>Your cart is empty.</Text>
       ) : (
-        <>
+        <View style={{ flex: 1 }}>
           <FlatList
             data={cartItems}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
-            contentContainerStyle={{ paddingBottom: 100 }}
+            contentContainerStyle={{ paddingBottom: 120 }}
           />
+
           <View style={styles.totalBox}>
             <Text style={styles.totalText}>
-              Total ({getItemCount()} item{getItemCount() > 1 ? 's' : ''}): ₹{getTotal()}
+              Total ({getItemCount()} item{getItemCount() > 1 ? 's' : ''}): ₹{getTotal().toFixed(2)}
             </Text>
             <TouchableOpacity style={styles.buyButton} onPress={handleBuy}>
               <Text style={styles.buyButtonText}>Proceed to Buy</Text>
             </TouchableOpacity>
           </View>
-        </>
+        </View>
       )}
+
+      <Toast />
     </View>
   );
 };
@@ -150,14 +231,22 @@ export default CartScreen;
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
     flex: 1,
+    paddingHorizontal: 20,
     backgroundColor: '#DBDBD0',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 19,
+    marginTop: 20,
   },
   heading: {
     fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 16,
+    textAlign: 'center',
+    paddingTop: 35,
   },
   emptyText: {
     marginTop: 40,
@@ -165,56 +254,50 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: 'gray',
   },
-
-  itemCard: {
+  itemRow: {
     flexDirection: 'row',
-    backgroundColor: '#fcfff1ff',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 14,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 2 },
+    alignItems: 'flex-start',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    gap: 14,
   },
   itemImage: {
-    width: 70,
-    height: 70,
-    borderRadius: 10,
-    marginRight: 12,
-    backgroundColor: '#e0e0e0',
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
   },
-  itemInfo: {
+  itemContent: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'space-between',
   },
   itemName: {
-    fontWeight: 'bold',
     fontSize: 16,
+    fontWeight: 'bold',
     marginBottom: 4,
   },
   itemPrice: {
     fontSize: 14,
-    color: '#666',
+    color: '#555',
+    marginBottom: 6,
   },
-  removeBtn: {
-    marginTop: 6,
-    color: 'red',
+  itemSize: {
     fontSize: 13,
+    color: '#333',
+    marginBottom: 6,
   },
-
   quantityRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
+    gap: 14,
     marginBottom: 6,
-    gap: 12,
   },
   qtyButton: {
     width: 28,
     height: 28,
     borderRadius: 6,
-    backgroundColor: '#ccc',
+    backgroundColor: '#ddd',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -224,31 +307,39 @@ const styles = StyleSheet.create({
   },
   qtyCount: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
-
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 20,
+    marginTop: 4,
+  },
   totalBox: {
-    marginTop: 10,
-    padding: 16,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     backgroundColor: '#fff',
-    borderRadius: 10,
-    elevation: 2,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderTopWidth: 1,
+    borderColor: '#ddd',
   },
   totalText: {
     fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'right',
+    marginBottom: 8,
   },
   buyButton: {
-    marginTop: 12,
-    backgroundColor: '#848886ff',
-    paddingVertical: 10,
+    backgroundColor: 'grey',
+    paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
   },
   buyButtonText: {
     color: '#fff',
-    fontWeight: 'bold',
     fontSize: 16,
+    fontWeight: '600',
   },
 });

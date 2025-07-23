@@ -1,19 +1,18 @@
 import React, { useContext } from 'react';
-import { View, Text, Button, FlatList, Alert } from 'react-native';
+import { View, Text, Button, FlatList } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { CartContext } from '../contexts/CartContext';
-import { db, auth } from './firebase';
+import { db, auth } from './firebaseConfig';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import Toast from 'react-native-toast-message';
 
 const CheckoutScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { cartItems, clearCart } = useContext(CartContext);
 
-  // ✅ Use item passed via Buy Now or fall back to full cart
   const items = route?.params?.items || cartItems;
 
-  // ✅ Safely calculate total price
   const total = Array.isArray(items)
     ? items.reduce((sum, item) => sum + (item?.price || 0), 0)
     : 0;
@@ -23,16 +22,21 @@ const CheckoutScreen = () => {
       const userId = auth.currentUser?.uid;
 
       if (!userId) {
-        Alert.alert("Error", "User not logged in.");
+        Toast.show({
+          type: 'error',
+          text1: 'User not logged in',
+        });
         return;
       }
 
       if (!items || items.length === 0) {
-        Alert.alert("Your cart is empty.");
+        Toast.show({
+          type: 'info',
+          text1: 'Your cart is empty',
+        });
         return;
       }
 
-      // ✅ Save order to Firebase
       await addDoc(collection(db, 'orders'), {
         userId,
         items,
@@ -41,17 +45,18 @@ const CheckoutScreen = () => {
         createdAt: serverTimestamp(),
       });
 
-      // ✅ Clear cart only if doing full-cart checkout
       if (!route.params?.items) {
         clearCart();
       }
 
-      // ✅ Navigate to Thank You screen
       navigation.navigate('ThankYou');
-
     } catch (error) {
       console.error('❌ Order Error:', error);
-      Alert.alert("Failed", "Could not place order.");
+      Toast.show({
+        type: 'error',
+        text1: 'Order failed',
+        text2: 'Could not place order',
+      });
     }
   };
 
@@ -71,6 +76,8 @@ const CheckoutScreen = () => {
 
       <Text style={{ fontSize: 18, marginTop: 10 }}>Total: ₹{total}</Text>
       <Button title="Buy Now" onPress={handleCheckout} />
+
+      <Toast />
     </View>
   );
 };

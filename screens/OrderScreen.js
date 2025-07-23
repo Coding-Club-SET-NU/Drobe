@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, Alert } from 'react-native';
-import { auth, db } from './firebase';
+import { View, Text, FlatList, StyleSheet } from 'react-native';
+import { auth, db } from './firebaseConfig';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
+import Toast from 'react-native-toast-message';
 
 const OrderScreen = () => {
   const [orders, setOrders] = useState([]);
@@ -12,17 +13,13 @@ const OrderScreen = () => {
     const currentUser = auth.currentUser;
 
     if (!currentUser) {
-      Alert.alert(
-        'Login Required',
-        'Please login to view your orders.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Login',
-            onPress: () => navigation.navigate('LoginScreen'),
-          },
-        ]
-      );
+      Toast.show({
+        type: 'info',
+        text1: 'Login Required',
+        text2: 'Please login to view your orders.',
+      });
+
+      navigation.navigate('LoginScreen');
       return;
     }
 
@@ -54,6 +51,7 @@ const OrderScreen = () => {
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
       />
+      <Toast />
     </View>
   );
 };

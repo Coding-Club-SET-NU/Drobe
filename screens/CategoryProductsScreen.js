@@ -4,12 +4,12 @@ import {
   Text,
   FlatList,
   ActivityIndicator,
-  Alert,
   StyleSheet,
 } from 'react-native';
 import { collection, getDocs } from 'firebase/firestore';
-import { auth, db } from './firebase';
+import { auth, db } from './firebaseConfig';
 import ProductCard from './ProductCard';
+import Toast from 'react-native-toast-message';
 
 const CategoryProductsScreen = ({ route, navigation }) => {
   const [products, setProducts] = useState([]);
@@ -45,7 +45,11 @@ const CategoryProductsScreen = ({ route, navigation }) => {
       setProducts(filtered);
     } catch (error) {
       console.error('🔥 Error fetching products:', error);
-      Alert.alert('Error', 'Could not load products.');
+      Toast.show({
+        type: 'error',
+        text1: 'Error loading products',
+        text2: 'Please try again later.',
+      });
     } finally {
       setLoading(false);
     }
@@ -67,31 +71,33 @@ const CategoryProductsScreen = ({ route, navigation }) => {
       ? category
       : 'Products';
 
-  
   return (
-  <View style={styles.container}>
-    <View style={styles.backWrapper}>
-      <Text style={styles.backButton} onPress={() => navigation.goBack()}>
-        ← Back
-      </Text>
-    </View>
+    <View style={styles.container}>
+      <View style={styles.backWrapper}>
+        <Text style={styles.backButton} onPress={() => navigation.goBack()}>
+          ← Back
+        </Text>
+      </View>
 
-    <Text style={styles.header}>{headerText}</Text>
-    {loading ? (
-      <ActivityIndicator size="large" color="brown" />
-    ) : products.length === 0 ? (
-      <Text style={styles.emptyText}>No products found.</Text>
-    ) : (
-      <FlatList
-        data={products}
-        keyExtractor={item => item.id}
-        renderItem={renderItem}
-        numColumns={2}
-        contentContainerStyle={{ paddingBottom: 80 }}
-      />
-    )}
-  </View>
-);
+      <Text style={styles.header}>{headerText}</Text>
+
+      {loading ? (
+        <ActivityIndicator size="large" color="brown" />
+      ) : products.length === 0 ? (
+        <Text style={styles.emptyText}>No products found.</Text>
+      ) : (
+        <FlatList
+          data={products}
+          keyExtractor={item => item.id}
+          renderItem={renderItem}
+          numColumns={2}
+          contentContainerStyle={{ paddingBottom: 80 }}
+        />
+      )}
+
+      <Toast />
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
@@ -106,22 +112,15 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textTransform: 'capitalize',
   },
+  backWrapper: {
+    marginTop: 19,
+    marginBottom: 4,
+  },
   backButton: {
-  color: 'black',
-  marginBottom: 6,
-  fontSize: 16,
-},
-backWrapper: {
-  marginTop: 19,
-  marginBottom: 4,
-},
-
-backButton: {
-  color: 'black',
-  fontSize: 16,
-  fontWeight: '500',
-},
-
+    color: 'black',
+    fontSize: 16,
+    fontWeight: '500',
+  },
   emptyText: {
     textAlign: 'center',
     color: 'gray',

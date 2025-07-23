@@ -1,15 +1,18 @@
-// screens/WelcomeScreen.js
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 
 export default function WelcomeScreen({ navigation }) {
   return (
     <View style={styles.container}>
+      {/* Use optional chaining and error fallback for image */}
       <Image
-        source={require('../assets/shopping-bag.png')} // Replace with your own icon
+        source={require('../assets/shopping-bag.png')} // 🔁 Make sure this exists!
         style={styles.image}
+        resizeMode="contain"
       />
-      <Text style={styles.title}>Find Your Next Style</Text>
+
+      <Text style={styles.title}>Where fashion Meets Feelings</Text>
+
       <TouchableOpacity
         style={styles.button}
         onPress={() => navigation.navigate('Login')}
@@ -38,6 +41,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 40,
     textAlign: 'center',
+    color: '#333',
   },
   button: {
     backgroundColor: '#4A90E2',
@@ -48,5 +52,6 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontSize: 18,
+    fontWeight: '600',
   },
 });

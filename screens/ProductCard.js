@@ -1,56 +1,88 @@
-// components/ProductCard.js
 import React, { useRef } from 'react';
-import { Animated, Text, TouchableWithoutFeedback, Image, StyleSheet, View } from 'react-native';
+import {
+  Text,
+  Image,
+  StyleSheet,
+  Animated,
+  TouchableWithoutFeedback,
+  GestureResponderEvent,
+} from 'react-native';
 
-const ProductCard = ({ item, onPress }) => {
+export default function ProductCard({ item, onPress }) {
   const scale = useRef(new Animated.Value(1)).current;
+  const startTime = useRef(0);
+  const startY = useRef(0);
 
-  const handlePressIn = () => {
+  const handlePressIn = (event) => {
+    startTime.current = Date.now();
+    startY.current = event.nativeEvent.pageY;
+
     Animated.spring(scale, {
-      toValue: 0.95,
+      toValue: 0.97,
       useNativeDriver: true,
     }).start();
   };
 
-  const handlePressOut = () => {
+    const handlePressOut = (event) => {
+    const duration = Date.now() - startTime.current;
+    const endY = event.nativeEvent.pageY;
+    const moved = Math.abs(endY - startY.current);
+
     Animated.spring(scale, {
       toValue: 1,
       useNativeDriver: true,
-    }).start(() => onPress(item));
+    }).start();
+
+    // Allow only true taps (short + not moved)
+    if (duration < 200 && moved < 6) {
+      onPress(item);
+
+    }
   };
 
   return (
-    <TouchableWithoutFeedback onPressIn={handlePressIn} onPressOut={handlePressOut}>
+    <TouchableWithoutFeedback
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+    >
       <Animated.View style={[styles.card, { transform: [{ scale }] }]}>
-        <Image source={{ uri: item.image }} style={styles.image} />
-        <Text style={styles.name}>{item.name}</Text>
-        <Text style={styles.price}>₹{item.price}</Text>
+        {item?.image ? (
+          <Image source={{ uri: item.image }} style={styles.image} />
+        ) : (
+          <Image source={require('../assets/icon.png')} style={styles.image} />
+        )}
+        <Text style={styles.name}>{item?.name || 'No Name'}</Text>
+        <Text style={styles.price}>
+          {item?.price ? `₹${item.price}` : 'No Price'}
+        </Text>
       </Animated.View>
     </TouchableWithoutFeedback>
   );
-};
+}
+
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#DBDBD0',
-    borderRadius: 8,
-    margin: 8,
-    padding: 10,
-    alignItems: 'center',
-    elevation: 3,
-  },
+  width: 160,
+  borderRadius: 16,
+  backgroundColor: '#fff',
+  padding: 10,
+},
+
+
   image: {
-    width: 120,
-    height: 140,
+    width: '100%',
+    height: 110,            
     borderRadius: 8,
   },
   name: {
-    marginTop: 8,
+    marginTop: 6,            // was 8
     fontWeight: 'bold',
+    fontSize: 14,
   },
   price: {
     color: 'gray',
+    fontSize: 13,
   },
 });
 
-export default ProductCard;

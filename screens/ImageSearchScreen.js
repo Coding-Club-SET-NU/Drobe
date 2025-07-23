@@ -6,10 +6,10 @@ import {
   Image,
   StyleSheet,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
+import Toast from 'react-native-toast-message';
 
 const VISION_API_KEY = 'AIzaSyCc5bjvaNs9RAMiQxpahuyZF7298Gv5Qe0';
 
@@ -21,7 +21,11 @@ const ImageSearch = () => {
   const pickImageFromGallery = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permission Required', 'Please allow media access.');
+      Toast.show({
+        type: 'info',
+        text1: 'Permission Required',
+        text2: 'Please allow media access.',
+      });
       return;
     }
 
@@ -41,7 +45,11 @@ const ImageSearch = () => {
   const takePhotoWithCamera = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permission Required', 'Please allow camera access.');
+      Toast.show({
+        type: 'info',
+        text1: 'Permission Required',
+        text2: 'Please allow camera access.',
+      });
       return;
     }
 
@@ -78,17 +86,29 @@ const ImageSearch = () => {
       const annotations = response.data.responses[0]?.labelAnnotations;
 
       if (!annotations || annotations.length === 0) {
-        Alert.alert('No Results', 'No labels detected.');
+        Toast.show({
+          type: 'info',
+          text1: 'No Results',
+          text2: 'No labels detected.',
+        });
         return;
       }
 
       const descriptions = annotations.map(label => label.description);
       setLabels(descriptions);
 
-      Alert.alert('Detected Labels', descriptions.join(', '));
+      Toast.show({
+        type: 'success',
+        text1: 'Detected Labels',
+        text2: descriptions.join(', '),
+      });
     } catch (error) {
       console.error(error);
-      Alert.alert('Error', 'Image analysis failed.');
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Image analysis failed.',
+      });
     } finally {
       setLoading(false);
     }
@@ -116,6 +136,8 @@ const ImageSearch = () => {
           ))}
         </View>
       )}
+
+      <Toast />
     </View>
   );
 };

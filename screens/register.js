@@ -1,8 +1,8 @@
-// screens/Register.js
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from './firebase';
+import { auth } from './firebaseConfig';
+import Toast from 'react-native-toast-message';
 
 const Register = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -11,30 +11,42 @@ const Register = ({ navigation }) => {
 
   const handleRegister = async () => {
     if (password !== confirmPassword) {
-      Alert.alert('Password Mismatch', 'Passwords do not match.');
+      Toast.show({
+        type: 'error',
+        text1: 'Password Mismatch',
+        text2: 'Passwords do not match.',
+      });
       return;
     }
 
     try {
       await createUserWithEmailAndPassword(auth, email, password);
-      // User automatically signed in, App.js will detect via onAuthStateChanged
+      Toast.show({
+        type: 'success',
+        text1: 'Registration Successful',
+        text2: 'Welcome aboard!',
+      });
+      navigation.navigate('Login'); // optionally navigate to login after success
     } catch (error) {
-      Alert.alert('Registration Failed', error.message);
+      Toast.show({
+        type: 'error',
+        text1: 'Registration Failed',
+        text2: error.message,
+      });
     }
   };
 
   return (
-    <View style={{ flex: 1, padding: 20, justifyContent: 'center' }}>
-      <Text style={{ fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 30 }}>
-        Create Account
-      </Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Create Account</Text>
 
       <TextInput
         placeholder="Email"
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
-        style={{ borderBottomWidth: 1, marginBottom: 20, fontSize: 16 }}
+        keyboardType="email-address"
+        style={styles.input}
       />
 
       <TextInput
@@ -42,7 +54,7 @@ const Register = ({ navigation }) => {
         value={password}
         onChangeText={setPassword}
         secureTextEntry
-        style={{ borderBottomWidth: 1, marginBottom: 20, fontSize: 16 }}
+        style={styles.input}
       />
 
       <TextInput
@@ -50,25 +62,65 @@ const Register = ({ navigation }) => {
         value={confirmPassword}
         onChangeText={setConfirmPassword}
         secureTextEntry
-        style={{ borderBottomWidth: 1, marginBottom: 30, fontSize: 16 }}
+        style={styles.input}
       />
 
-      <TouchableOpacity
-        onPress={handleRegister}
-        style={{ backgroundColor: 'black', padding: 15, borderRadius: 10 }}
-      >
-        <Text style={{ color: '#fff', textAlign: 'center', fontWeight: 'bold' }}>
-          Register
+      <TouchableOpacity onPress={handleRegister} style={styles.registerButton}>
+        <Text style={styles.buttonText}>Register</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.loginRedirect}>
+        <Text style={styles.loginText}>
+          Already have an account? <Text style={styles.loginLink}>Login</Text>
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.navigate('Login')} style={{ marginTop: 20 }}>
-        <Text style={{ textAlign: 'center', color: 'blue' }}>
-          Already have an account? Login
-        </Text>
-      </TouchableOpacity>
+      <Toast />
     </View>
   );
 };
 
 export default Register;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 24,
+    justifyContent: 'center',
+    backgroundColor: '#DBDBD0',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 30,
+  },
+  input: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#888',
+    marginBottom: 24,
+    fontSize: 16,
+    paddingVertical: 8,
+  },
+  registerButton: {
+    backgroundColor: 'black',
+    padding: 15,
+    borderRadius: 10,
+  },
+  buttonText: {
+    color: '#fff',
+    textAlign: 'center',
+    fontWeight: 'bold',
+  },
+  loginRedirect: {
+    marginTop: 20,
+  },
+  loginText: {
+    textAlign: 'center',
+    color: '#555',
+  },
+  loginLink: {
+    color: 'blue',
+    fontWeight: 'bold',
+  },
+});

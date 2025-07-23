@@ -4,16 +4,15 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  Alert,
   StyleSheet,
 } from 'react-native';
 import { doc, setDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import { db } from './firebaseConfig';
 import { AuthContext } from '../contexts/AuthContext';
+import Toast from 'react-native-toast-message';
 
 export default function SellerRegistrationScreen({ navigation }) {
   const { user } = useContext(AuthContext);
-
   const [fullName, setFullName] = useState('');
   const [shopName, setShopName] = useState('');
   const [phone, setPhone] = useState('');
@@ -21,26 +20,39 @@ export default function SellerRegistrationScreen({ navigation }) {
 
   const handleRegister = async () => {
     if (!fullName || !shopName || !phone) {
-      Alert.alert('Required', 'Please fill in all required fields');
+      Toast.show({
+        type: 'error',
+        text1: 'Required',
+        text2: 'Please fill in all required fields',
+      });
       return;
     }
 
     try {
       const sellerRef = doc(db, 'sellers', user.uid);
       await setDoc(sellerRef, {
+        uid: user.uid,
         fullName,
         shopName,
         phone,
         address,
-        uid: user.uid,
         createdAt: new Date(),
       });
 
-      Alert.alert('Success', 'You are now registered as a seller');
+      Toast.show({
+        type: 'success',
+        text1: 'Registration Successful',
+        text2: 'You are now registered as a seller',
+      });
+
       navigation.replace('SellerDashboard');
     } catch (error) {
       console.error('❌ Registration error:', error);
-      Alert.alert('Error', 'Could not register. Try again later.');
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Could not register. Try again later.',
+      });
     }
   };
 
@@ -50,25 +62,29 @@ export default function SellerRegistrationScreen({ navigation }) {
 
       <TextInput
         placeholder="Full Name"
+        placeholderTextColor="grey"
         value={fullName}
         onChangeText={setFullName}
         style={styles.input}
       />
       <TextInput
         placeholder="Business Name"
+        placeholderTextColor="grey"
         value={shopName}
         onChangeText={setShopName}
         style={styles.input}
       />
       <TextInput
         placeholder="Phone Number"
+        placeholderTextColor="grey"
         value={phone}
         onChangeText={setPhone}
         keyboardType="phone-pad"
         style={styles.input}
       />
       <TextInput
-        placeholder="Address (optional)"
+        placeholder="Address"
+        placeholderTextColor="grey"
         value={address}
         onChangeText={setAddress}
         style={styles.input}
@@ -77,6 +93,8 @@ export default function SellerRegistrationScreen({ navigation }) {
       <TouchableOpacity style={styles.button} onPress={handleRegister}>
         <Text style={styles.buttonText}>Register as Seller</Text>
       </TouchableOpacity>
+
+      <Toast />
     </View>
   );
 }
@@ -86,6 +104,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#DBDBD0',
     padding: 20,
+    marginTop: 29,
   },
   heading: {
     fontSize: 22,
@@ -100,7 +119,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   button: {
-    backgroundColor: 'brown',
+    backgroundColor: 'grey',
     padding: 14,
     borderRadius: 8,
     marginTop: 10,

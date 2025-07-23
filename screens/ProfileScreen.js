@@ -1,252 +1,169 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
-  Image,
-  Alert,
   TouchableOpacity,
+  FlatList,
 } from 'react-native';
-import { auth, db } from './firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { AuthContext } from '../contexts/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { auth } from './firebaseConfig';
 import { signOut } from 'firebase/auth';
-import { CommonActions, useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message'; // ✅ Imported toast
 
-const ProfileScreen = () => {
-  const [user, setUser] = useState(null);
-  const [sellerData, setSellerData] = useState(null);
+const menuItems = [
+  { title: 'Edit Profile', screen: 'EditProfile' },
+  { title: 'Your Orders' },
+  { title: 'Seller Dashboard' },
+  { title: 'Seller Registration', screen: 'SellerRegistration' },
+  { title: 'Returns & Refunds Policy' },
+  { title: 'Help & Support', screen: 'SupportScreen' },
+];
+
+export default function ProfileScreen() {
+  const { user } = useContext(AuthContext);
   const navigation = useNavigation();
-
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(currentUser => {
-      if (currentUser) {
-        setUser(currentUser);
-        fetchSellerDetails(currentUser.uid);
-      } else {
-        setUser(null);
-        setSellerData(null);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const fetchSellerDetails = async uid => {
-    try {
-      const sellerRef = doc(db, 'sellers', uid);
-      const sellerSnap = await getDoc(sellerRef);
-      if (sellerSnap.exists()) {
-        setSellerData(sellerSnap.data());
-      } else {
-        setSellerData(null);
-      }
-    } catch (error) {
-      console.error('❌ Seller fetch error:', error);
-      Alert.alert('Error', 'Failed to fetch seller info');
-    }
-  };
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [{ name: 'Welcome' }],
-        })
-      );
+      Toast.show({
+        type: 'success',
+        text1: 'Signed Out',
+        text2: 'You have been logged out successfully.',
+      });
     } catch (error) {
-      Alert.alert('Logout Failed', error.message);
+      console.error('❌ Logout Error:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Logout Failed',
+        text2: error.message,
+      });
     }
   };
 
-  const avatarUri = user?.photoURL || 'https://i.ibb.co/ZYW3VTp/brown-user.png';
+  const renderItem = ({ item }) => (
+    <TouchableOpacity
+      style={styles.menuItem}
+      onPress={() => {
+        if (item.screen) {
+          try {
+            navigation.navigate(item.screen);
+          } catch (err) {
+            console.warn(`Navigation error to ${item.screen}:`, err);
+          }
+        }
+      }}
+    >
+      <Text style={styles.menuText}>{item.title}</Text>
+      <Ionicons name="chevron-forward" size={20} color="#000" />
+    </TouchableOpacity>
+  );
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>My Profile</Text>
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.title}>My Account</Text>
 
-      {user ? (
-        <>
-          <View style={styles.avatarContainer}>
-            <Image source={{ uri: avatarUri }} style={styles.avatar} />
-            <Text style={styles.name}>{user.displayName || 'Name'}</Text>
-            <Text style={styles.email}>{user.email}</Text>
-          </View>
-
-          {/* ACCOUNT DETAILS WITHOUT CARD */}
-          <View style={styles.infoContainer}>
-            <Text style={styles.infoText}><Text style={styles.label}>UID:</Text> {user.uid}</Text>
-            <Text style={styles.infoText}>
-              <Text style={styles.label}>Account Type:</Text> {sellerData ? '✅ Seller' : '🧍 Regular User'}
-            </Text>
-
-            {sellerData && (
-              <>
-                <Text style={styles.infoText}><Text style={styles.label}>Full Name:</Text> {sellerData.fullName || '—'}</Text>
-                <Text style={styles.infoText}><Text style={styles.label}>Phone:</Text> {sellerData.phone || '—'}</Text>
-                <Text style={styles.infoText}><Text style={styles.label}>Shop Name:</Text> {sellerData.shopName || '—'}</Text>
-              </>
-            )}
-          </View>
-
-          <View style={styles.actionsContainer}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => navigation.navigate('Order')}
-            >
-              <Text style={styles.actionButtonText}>🧾 View My Orders</Text>
-            </TouchableOpacity>
-
-            {!sellerData ? (
-              <TouchableOpacity
-                style={[styles.actionButton, styles.sellerButton]}
-                onPress={() => navigation.navigate('SellerRegistration')}
-              >
-                <Text style={[styles.actionButtonText, styles.sellerButtonText]}>
-                  🛍 Become a Seller
-                </Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={[styles.actionButton, styles.shopButton]}
-                onPress={() => navigation.navigate('MyShop')}
-              >
-                <Text style={[styles.actionButtonText, styles.shopButtonText]}>
-                  🏬 Go to My Shop
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              style={[styles.actionButton, styles.logoutButton]}
-              onPress={handleLogout}
-            >
-              <Text style={[styles.actionButtonText, styles.logoutButtonText]}>
-                🚪 Log Out
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </>
-      ) : (
-        <View style={styles.notLoggedInBox}>
-          <Image source={{ uri: avatarUri }} style={styles.avatar} />
-          <Text style={styles.name}>Guest User</Text>
-          <Text style={styles.email}>You're not logged in.</Text>
-
-          <TouchableOpacity
-            style={styles.primaryButton}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate('Welcome')}
-          >
-            <Text style={styles.primaryButtonText}>GO TO HOME</Text>
-          </TouchableOpacity>
+      <View style={styles.profileSection}>
+        <View style={styles.avatarCircle}>
+          <Ionicons name="person-outline" size={40} color="#fff" />
         </View>
-      )}
-    </ScrollView>
+        <TouchableOpacity style={styles.signInButton}>
+          <Text style={styles.signInText}>
+            {user ? `Hello ${user.displayName || 'User'}` : 'Sign in / Join'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={menuItems}
+        keyExtractor={(item, index) => index.toString()}
+        renderItem={renderItem}
+        contentContainerStyle={styles.menuList}
+      />
+
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <Ionicons name="log-out-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+        <Text style={styles.logoutText}>Log Out</Text>
+      </TouchableOpacity>
+
+      <Toast />
+    </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 40,
-    paddingHorizontal: 24,
+    flex: 1,
     backgroundColor: '#DBDBD0',
-    alignItems: 'center',
-    minHeight: '100%',
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 24,
+    fontSize: 24,
+    fontWeight: 'bold',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
+  profileSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  avatarCircle: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  signInButton: {
+    marginLeft: 20,
+    backgroundColor: '#000',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  signInText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  menuList: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+  },
+  menuItem: {
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  menuText: {
+    fontSize: 16,
     color: '#333',
   },
-  avatarContainer: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  avatar: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: '#ddd',
-    marginBottom: 12,
-  },
-  name: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#222',
-  },
-  email: {
-    fontSize: 16,
-    color: '#666',
-  },
-
-  // NEW simple info container and texts:
-  infoContainer: {
-    width: '100%',
-    marginBottom: 30,
-  },
-  infoText: {
-    fontSize: 16,
-    marginBottom: 8,
-    color: '#444',
-  },
-  label: {
-    fontWeight: '600',
-    color: '#555',
-  },
-
-  actionsContainer: {
-    width: '100%',
-  },
-  actionButton: {
-    backgroundColor: '#464642ff',
-    paddingVertical: 14,
-    borderRadius: 30,
-    marginBottom: 16,
-    alignItems: 'center',
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  sellerButton: {
-    backgroundColor: '#f2a365',
-  },
-  sellerButtonText: {
-    color: '#4a2c00',
-  },
-  shopButton: {
-    backgroundColor: '#464642ff',
-  },
-  shopButtonText: {
-    color: '#f0e6ff',
-  },
   logoutButton: {
-    backgroundColor: '#464642ff',
-  },
-  logoutButtonText: {
-    color: '#fff',
-  },
-  notLoggedInBox: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 40,
-  },
-  primaryButton: {
-    marginTop: 20,
-    backgroundColor: '#898d76ff',
+    justifyContent: 'center',
+    backgroundColor: 'grey',
     paddingVertical: 14,
-    paddingHorizontal: 40,
-    borderRadius: 30,
+    borderRadius: 8,
+    marginHorizontal: 20,
+    marginTop: 24,
   },
-  primaryButtonText: {
+  logoutText: {
     color: '#fff',
-    fontWeight: '700',
+    fontWeight: '600',
     fontSize: 16,
   },
 });
-
-export default ProfileScreen;

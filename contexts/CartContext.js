@@ -1,14 +1,13 @@
 // screens/CartContext.js
 import React, { createContext, useState, useEffect } from 'react';
-import { Alert } from 'react-native';
-import { db, auth } from '../screens/firebase';
+import Toast from 'react-native-toast-message';
+import { db, auth } from '../screens/firebaseConfig';
 import {
   collection,
   addDoc,
   query,
   where,
   getDocs,
-  onSnapshot,
   deleteDoc,
   doc
 } from 'firebase/firestore';
@@ -22,15 +21,19 @@ export const CartProvider = ({ children }) => {
     const user = auth.currentUser;
     if (!user) return;
 
-    const q = query(collection(db, 'cart'), where('userId', '==', user.uid));
-    const snapshot = await getDocs(q);
+    try {
+      const q = query(collection(db, 'cart'), where('userId', '==', user.uid));
+      const snapshot = await getDocs(q);
 
-    const items = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+      const items = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
 
-    setCartItems(items);
+      setCartItems(items);
+    } catch (error) {
+      console.error('❌ Error fetching cart items:', error);
+    }
   };
 
   useEffect(() => {
@@ -40,7 +43,11 @@ export const CartProvider = ({ children }) => {
   const addToCart = async (product) => {
     const user = auth.currentUser;
     if (!user) {
-      Alert.alert('Login Required', 'Please login to add items to cart.');
+      Toast.show({
+        type: 'info',
+        text1: 'Login Required',
+        text2: 'Please login to add items to cart.',
+      });
       return;
     }
 
@@ -52,7 +59,10 @@ export const CartProvider = ({ children }) => {
 
     const snapshot = await getDocs(q);
     if (!snapshot.empty) {
-      Alert.alert('Already in Cart');
+      Toast.show({
+        type: 'info',
+        text1: 'Already in Cart',
+      });
       return;
     }
 
@@ -64,17 +74,25 @@ export const CartProvider = ({ children }) => {
         price: product.price,
         image: product.image || '',
         createdAt: new Date(),
+        quantity: 1, // Default quantity if needed
       });
 
       setCartItems((prev) => [
         ...prev,
-        { id: docRef.id, ...product },
+        { id: docRef.id, ...product, quantity: 1 },
       ]);
 
-      Alert.alert('✅ Added to Cart');
+      Toast.show({
+        type: 'success',
+        text1: 'Added to Cart',
+      });
     } catch (err) {
       console.error('❌ Error adding to cart:', err);
-      Alert.alert('Error', 'Could not add to cart.');
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Could not add to cart.',
+      });
     }
   };
 
@@ -82,15 +100,19 @@ export const CartProvider = ({ children }) => {
     const user = auth.currentUser;
     if (!user) return;
 
-    const q = query(collection(db, 'cart'), where('userId', '==', user.uid));
-    const snapshot = await getDocs(q);
+    try {
+      const q = query(collection(db, 'cart'), where('userId', '==', user.uid));
+      const snapshot = await getDocs(q);
 
-    const deletePromises = snapshot.docs.map((docSnap) =>
-      deleteDoc(doc(db, 'cart', docSnap.id))
-    );
+      const deletePromises = snapshot.docs.map((docSnap) =>
+        deleteDoc(doc(db, 'cart', docSnap.id))
+      );
 
-    await Promise.all(deletePromises);
-    setCartItems([]);
+      await Promise.all(deletePromises);
+      setCartItems([]);
+    } catch (error) {
+      console.error('❌ Error clearing cart:', error);
+    }
   };
 
   return (

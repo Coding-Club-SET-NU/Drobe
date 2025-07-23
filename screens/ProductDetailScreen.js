@@ -1,119 +1,210 @@
-import React, { useContext } from 'react';
+// ✅ Full ProductDetailScreen.js with Size Selection + Chart + Free Size Fallback
+
+import React, { useContext, useEffect, useState } from 'react';
 import {
   View,
   Text,
   Image,
-  StyleSheet,
   TouchableOpacity,
-  Alert,
   ScrollView,
+  StyleSheet,
+  Modal,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { db } from './firebase';
-import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { Ionicons } from '@expo/vector-icons';
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  query,
+  where,
+} from 'firebase/firestore';
+import { db } from './firebaseConfig';
 import { AuthContext } from '../contexts/AuthContext';
+import Toast from 'react-native-toast-message';
 
-const ProductDetailScreen = () => {
+export default function ProductDetailScreen() {
+  const { user } = useContext(AuthContext);
   const route = useRoute();
   const navigation = useNavigation();
-  const { user } = useContext(AuthContext);
 
   const product = route.params?.product;
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [selectedSize, setSelectedSize] = useState(null);
+  const [showChart, setShowChart] = useState(false);
 
-  if (!product) {
-    return (
-      <View style={styles.centered}>
-        <Text style={{ fontSize: 18 }}>⚠️ Product not found.</Text>
-      </View>
-    );
-  }
-
-  const handleAddToCart = () => {
-    Alert.alert('Cart', `${product.name || 'Item'} added to cart`);
-  };
-
-  const handleBuyNow = () => {
-  Alert.alert(
-    'Buy Now',
-    `Do you want to buy "${product.name}" for ₹${product.price}?`,
-    [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Proceed',
-        onPress: () => {
-          // ✅ Navigate safely with timeout
-          setTimeout(() => {
-            navigation.navigate('Checkout', { items: [product] });
-          }, 0);
-        },
-      },
-    ]
-  );
-};
-
-  const handleAddToWishlist = async () => {
-    if (!user?.uid) {
-      Alert.alert('Login required', 'Please log in to add to wishlist.');
-      return;
-    }
-
-    try {
+  useEffect(() => {
+    const checkWishlist = async () => {
+      if (!user?.uid || !product?.id) return;
       const q = query(
         collection(db, 'wishlist'),
         where('userId', '==', user.uid),
         where('productId', '==', product.id)
       );
       const snapshot = await getDocs(q);
+      setIsWishlisted(!snapshot.empty);
+    };
 
-      if (!snapshot.empty) {
-        Alert.alert('Already in Wishlist');
-        return;
-      }
+    checkWishlist();
+  }, [user, product]);
 
-      await addDoc(collection(db, 'wishlist'), {
+  const toggleWishlist = async () => {
+    if (!user?.uid) {
+      Toast.show({
+        type: 'info',
+        text1: 'Login Required',
+        text2: 'Please log in to manage wishlist.',
+      });
+      return;
+    }
+
+    const wishlistRef = collection(db, 'wishlist');
+    const q = query(
+      wishlistRef,
+      where('userId', '==', user.uid),
+      where('productId', '==', product.id)
+    );
+    const snapshot = await getDocs(q);
+
+    if (!snapshot.empty) {
+      const docId = snapshot.docs[0].id;
+      await deleteDoc(doc(wishlistRef, docId));
+      setIsWishlisted(false);
+      Toast.show({
+        type: 'success',
+        text1: 'Removed from Wishlist',
+      });
+    } else {
+      await addDoc(wishlistRef, {
         userId: user.uid,
+        productId: product.id,
         name: product.name,
         price: product.price,
         image: product.image,
-        productId: product.id,
       });
-
-      Alert.alert('🖤Added to Wishlist');
-    } catch (err) {
-      console.error('❌ Wishlist error:', err);
-      Alert.alert('Error', 'Could not add to wishlist');
+      setIsWishlisted(true);
+      Toast.show({
+        type: 'success',
+        text1: 'Added to Wishlist',
+      });
     }
   };
 
+  const handleAddToCart = () => {
+    if (!selectedSize) {
+      Toast.show({ type: 'error', text1: 'Please select a size' });
+      return;
+    }
+    Toast.show({
+      type: 'success',
+      text1: 'Cart',
+      text2: `${product.name} (${selectedSize}) added to bag.`,
+    });
+  };
+
+  const handleBuyNow = () => {
+    if (!selectedSize) {
+      Toast.show({ type: 'error', text1: 'Please select a size' });
+      return;
+    }
+    Toast.show({
+      type: 'info',
+      text1: 'Redirecting to Checkout',
+      text2: `Buying "${product.name}" - Size: ${selectedSize}`,
+    });
+    navigation.navigate('Checkout', { items: [product], size: selectedSize });
+  };
+
+  if (!product) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>⚠️ Product not found.</Text>
+      </View>
+    );
+  }
+
+  const sizes = product?.sizes?.length > 0 ? product.sizes : ['Free Size'];
+
   return (
     <ScrollView style={styles.container}>
-      <Image
-        source={{ uri: product.image || 'https://via.placeholder.com/300' }}
-        style={styles.image}
-      />
-      <Text style={styles.name}>{product.name}</Text>
-      <Text style={styles.price}>₹{product.price}</Text>
-      <Text style={styles.description}>
-        {product.description || 'No description available.'}
-      </Text>
-
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity onPress={handleAddToCart} style={styles.addToCartButton}>
-          <Text style={styles.buttonText}>Add to Cart</Text>
+      <View style={styles.imageContainer}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleBuyNow} style={styles.buyNowButton}>
-          <Text style={styles.buttonText}>Buy Now</Text>
+
+        <Image source={{ uri: product.image }} style={styles.image} resizeMode="cover" />
+
+        <TouchableOpacity onPress={toggleWishlist} style={styles.wishlistIcon}>
+          <Ionicons
+            name={isWishlisted ? 'heart' : 'heart-outline'}
+            size={24}
+            color="#f05"
+          />
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity onPress={handleAddToWishlist} style={styles.wishlistButton}>
-        <Text style={styles.wishlistText}>🤍Add to Wishlist</Text>
-      </TouchableOpacity>
+      <Text style={styles.productName}>{product.name}</Text>
+      <Text style={styles.productPrice}>₹{product.price}</Text>
+
+      <Text style={{ fontSize: 16, marginTop: 24, fontWeight: '600' }}>Select Size</Text>
+
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
+        {sizes.map((sz) => (
+          <TouchableOpacity
+            key={sz}
+            onPress={() => setSelectedSize(sz)}
+            style={{
+              borderWidth: 1.5,
+              borderColor: selectedSize === sz ? '#f05' : '#aaa',
+              paddingVertical: 8,
+              paddingHorizontal: 16,
+              borderRadius: 30,
+              backgroundColor: selectedSize === sz ? '#f05' : '#fff',
+            }}
+          >
+            <Text style={{ color: selectedSize === sz ? '#fff' : '#333' }}>{sz}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {sizes.length > 1 && (
+        <TouchableOpacity onPress={() => setShowChart(true)} style={{ marginTop: 14 }}>
+          <Text style={{ color: '#f05', textDecorationLine: 'underline' }}>View Size Chart</Text>
+        </TouchableOpacity>
+      )}
+
+      <View style={styles.buttonRow}>
+        <TouchableOpacity onPress={handleBuyNow} style={styles.buyNowButton}>
+          <Ionicons name="bag-outline" size={18} color="#ff" />
+          <Text style={styles.buyNowText}>Buy Now</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={handleAddToCart} style={styles.addToCartButton}>
+          <Ionicons name="bag" size={18} color="#fff" />
+          <Text style={styles.addToCartText}>Add to Bag</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Modal visible={showChart} transparent animationType="slide">
+        <View style={{ flex: 1, backgroundColor: '#000000aa', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ width: '90%', backgroundColor: '#fff', borderRadius: 8, padding: 20 }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>Size Chart</Text>
+            <Text>- S: Chest 36", Length 24"</Text>
+            <Text>- M: Chest 38", Length 25"</Text>
+            <Text>- L: Chest 40", Length 26"</Text>
+            <TouchableOpacity onPress={() => setShowChart(false)} style={{ marginTop: 20, alignSelf: 'flex-end' }}>
+              <Text style={{ color: '#f05' }}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Toast />
     </ScrollView>
   );
-};
-
-export default ProductDetailScreen;
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -121,72 +212,79 @@ const styles = StyleSheet.create({
     backgroundColor: '#DBDBD0',
     padding: 16,
   },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
+  imageContainer: {
+    position: 'relative',
     alignItems: 'center',
+    marginTop: 20,
+  },
+  backButton: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 6,
+    elevation: 4,
+    zIndex: 10,
+  },
+  wishlistIcon: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 6,
+    elevation: 4,
   },
   image: {
     width: '100%',
-    height: 300,
-    resizeMode: 'contain',
+    height: 400,
     borderRadius: 10,
-    marginBottom: 20,
+    backgroundColor: '#eee',
   },
-  name: {
-    fontSize: 24,
+  productName: {
+    fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginTop: 16,
   },
-  price: {
+  productPrice: {
     fontSize: 20,
-    color: 'gray',
-    marginBottom: 16,
+    color: '#f05',
+    marginBottom: 24,
   },
-  description: {
-    fontSize: 16,
-    marginBottom: 20,
-    color: '#333',
-  },
-  buttonContainer: {
+  buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  addToCartButton: {
-    backgroundColor: '#464642ff',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    flex: 1,
-    marginRight: 8,
-    alignItems: 'center',
+    marginTop: 20,
   },
   buyNowButton: {
-    backgroundColor: '#464642ff',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
     flex: 1,
-    marginLeft: 8,
+    borderWidth: 2,
+    borderColor: '#79c6bbff', 
+    paddingVertical: 14,
+    borderRadius: 30,
+    marginRight: 10,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  buttonText: {
-    color: 'white',
+  buyNowText: {
+    color: '#ff',
     fontWeight: 'bold',
+    marginLeft: 8,
   },
-  wishlistButton: {
-    marginTop: 12,
-    backgroundColor: '#464642ff',
-    paddingVertical: 12,
-    borderRadius: 8,
+  addToCartButton: {
+    flex: 1,
+    backgroundColor: '#79c6a6ff',
+    paddingVertical: 14,
+    borderRadius: 30,
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#aaa',
+    justifyContent: 'center',
   },
-  wishlistText: {
-    fontSize: 16,
-    color: 'white',
-    fontWeight: '600',
+  addToCartText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    marginLeft: 8,
   },
 });

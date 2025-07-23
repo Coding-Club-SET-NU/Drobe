@@ -1,4 +1,3 @@
-// screens/SellerDashboardScreen.js
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -7,10 +6,10 @@ import {
   FlatList,
   Image,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
-import { auth, db } from './firebase'; // ✅ Make sure you're importing both
+import { auth, db } from './firebaseConfig';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import Toast from 'react-native-toast-message'; // ✅ Toast import
 
 export default function SellerDashboardScreen({ navigation }) {
   const [sellerInfo, setSellerInfo] = useState(null);
@@ -31,11 +30,19 @@ export default function SellerDashboardScreen({ navigation }) {
       if (docSnap.exists()) {
         setSellerInfo(docSnap.data());
       } else {
-        Alert.alert('Not a seller', 'No seller info found.');
+        Toast.show({
+          type: 'info',
+          text1: 'Not a seller',
+          text2: 'No seller info found.',
+        });
       }
     } catch (err) {
       console.error('❌ Error fetching seller info:', err);
-      Alert.alert('Error', 'Failed to fetch seller info.');
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to fetch seller info.',
+      });
     }
   };
 
@@ -47,7 +54,11 @@ export default function SellerDashboardScreen({ navigation }) {
       setProducts(items);
     } catch (err) {
       console.error('❌ Error fetching products:', err);
-      Alert.alert('Error', 'Failed to fetch your products.');
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to fetch your products.',
+      });
     }
   };
 
@@ -77,7 +88,6 @@ export default function SellerDashboardScreen({ navigation }) {
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => navigation.navigate('Main', { screen: 'Upload' })}
-
         >
           <Text style={styles.addText}>+ Add</Text>
         </TouchableOpacity>
@@ -91,6 +101,8 @@ export default function SellerDashboardScreen({ navigation }) {
         contentContainerStyle={{ paddingBottom: 100 }}
         columnWrapperStyle={{ justifyContent: 'space-between' }}
       />
+
+      <Toast /> {/* ✅ Ensure Toast component is rendered */}
     </View>
   );
 }
