@@ -87,7 +87,7 @@ Then open the app using:
 
 * Expo Go (mobile)
 * Android Emulator
-* iOS Simulator
+
 
 ---
 
