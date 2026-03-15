@@ -62,7 +62,7 @@ App.js
 ### 1. Clone the repository
 
 ```
-git clone https://github.com/Tshuluugit /Drobe.git
+git clone https://github.com/Tshuluu/Drobe.git
 ```
 
 ### 2. Navigate to the project folder
